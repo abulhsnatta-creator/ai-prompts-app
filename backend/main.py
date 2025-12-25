@@ -1,32 +1,53 @@
-import os
-import sys
 from flask import Flask, jsonify
 from flask_cors import CORS
-
-# إضافة المجلد الحالي للمسار لضمان عمل الاستيراد بشكل صحيح
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-
-try:
-    from src.routes.careers import careers_bp
-except ImportError as e:
-    print("Error importing careers_bp. Please check your folder structure.")
-    print(f"Details: {e}")
-    sys.exit(1)
+import json
+import os
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'dev-key-123'
-
-# السماح للواجهة الأمامية بالاتصال بالسيرفر
+# هذا السطر هو الذي يسمح للموقع بأخذ البيانات
 CORS(app)
 
-# تسجيل المسار الخاص بالمهن فقط
-app.register_blueprint(careers_bp, url_prefix='/api')
+# تحميل البيانات
+def load_data():
+    try:
+        file_path = os.path.join(os.path.dirname(__file__), 'data.json')
+        with open(file_path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return {"careers": []}
 
 @app.route('/')
 def home():
-    return "Server is running! You can now request /api/careers"
+    return "Backend is running correctly!"
+
+@app.route('/api/careers', methods=['GET'])
+def get_careers():
+    data = load_data()
+    careers_list = []
+    for career in data.get('careers', []):
+        careers_list.append({
+            "name": career['name'],
+            "prompt_count": len(career.get('prompts_en', []))
+        })
+    return jsonify({"success": True, "careers": careers_list})
+
+@app.route('/api/careers/<path:career_name>/prompts', methods=['GET'])
+def get_prompts(career_name):
+    data = load_data()
+    # البحث عن المهنة (بدون حساسيه لحالة الأحرف)
+    career = next((c for c in data.get('careers', []) if c['name'].lower() == career_name.lower()), None)
+    
+    if career:
+        return jsonify({
+            "success": True, 
+            "career": career['name'],
+            "prompts_ar": career.get('prompts_ar', []),
+            "prompts_en": career.get('prompts_en', []),
+            "suggested_ai_tools": career.get('suggested_ai_tools', []),
+            "prompt_count": len(career.get('prompts_en', []))
+        })
+    return jsonify({"success": False, "message": "Career not found"}), 404
 
 if __name__ == '__main__':
-    print("Starting Flask Server...")
-    # تشغيل السيرفر على المنفذ 5000
-    app.run(debug=True, port=5000)
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host='0.0.0.0', port=port)
