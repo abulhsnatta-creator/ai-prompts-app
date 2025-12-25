@@ -4,11 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge.jsx'
 import { Copy, Globe, Search, Sparkles, Users, Zap } from 'lucide-react'
 import './App.css'
-
-// تأكد أن هذا الرابط يشير للسيرفر المحلي حالياً للتجربة
-const API_URL = 'http://127.0.0.1:5000';
-// عند الرفع، غيره إلى: 'https://ai-prompts-app.onrender.com'
-
+const API_URL = 'https://ai-prompts-app.onrender.com';
 function App() {
   const [careers, setCareers] = useState([])
   const [selectedCareer, setSelectedCareer] = useState(null)
