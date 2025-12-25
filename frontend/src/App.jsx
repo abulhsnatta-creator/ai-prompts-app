@@ -5,6 +5,10 @@ import { Badge } from '@/components/ui/badge.jsx'
 import { Copy, Globe, Search, Sparkles, Users, Zap } from 'lucide-react'
 import './App.css'
 
+// تأكد أن هذا الرابط يشير للسيرفر المحلي حالياً للتجربة
+const API_URL = 'http://127.0.0.1:5000';
+// عند الرفع، غيره إلى: 'https://ai-prompts-app.onrender.com'
+
 function App() {
   const [careers, setCareers] = useState([])
   const [selectedCareer, setSelectedCareer] = useState(null)
@@ -12,6 +16,16 @@ function App() {
   const [loading, setLoading] = useState(false)
   const [language, setLanguage] = useState('ar')
   const [searchTerm, setSearchTerm] = useState('')
+
+  // --- قائمة الأدوات الافتراضية (الحل السحري) ---
+  const defaultTools = [
+    { name: "ChatGPT", url: "https://chat.openai.com" },
+    { name: "Gemini", url: "https://gemini.google.com" },
+    { name: "Midjourney", "url": "https://www.midjourney.com" },
+    { name: "Bing AI", "url": "https://www.bing.com/chat" },
+    { name: "Canva AI", "url": "https://www.canva.com" }
+  ];
+  // ---------------------------------------------
 
   const translations = {
     ar: {
@@ -57,7 +71,7 @@ function App() {
   const fetchCareers = async () => {
     try {
       setLoading(true)
-      const response = await fetch('http://127.0.0.1:5000/api/careers')
+      const response = await fetch(`${API_URL}/api/careers`)
       const data = await response.json()
       if (data.success) {
         setCareers(data.careers)
@@ -72,7 +86,7 @@ function App() {
   const fetchCareerPrompts = async (careerName) => {
     try {
       setLoading(true)
-      const response = await fetch(`http://127.0.0.1:5000/api/careers/${encodeURIComponent(careerName)}/prompts`)
+      const response = await fetch(`${API_URL}/api/careers/${encodeURIComponent(careerName)}/prompts`)
       const data = await response.json()
       if (data.success) {
         setPromptsData(data)
@@ -100,7 +114,6 @@ function App() {
     document.documentElement.dir = language === 'ar' ? 'ltr' : 'rtl'
   }
 
-  // دالة جلب القائمة المناسبة (عربي أو إنجليزي)
   const getCurrentPromptsList = () => {
     if (!promptsData) return []
     if (language === 'ar') {
@@ -113,6 +126,11 @@ function App() {
 
   if (selectedCareer && promptsData) {
     const currentList = getCurrentPromptsList()
+    
+    // المنطق الجديد: استخدم الأدوات القادمة من السيرفر، وإلا استخدم القائمة الافتراضية
+    const toolsToDisplay = (promptsData.suggested_ai_tools && promptsData.suggested_ai_tools.length > 0) 
+                            ? promptsData.suggested_ai_tools 
+                            : defaultTools;
 
     return (
       <div className={`min-h-screen bg-slate-50 ${language === 'ar' ? 'rtl' : 'ltr'}`} dir={language === 'ar' ? 'rtl' : 'ltr'}>
@@ -132,43 +150,42 @@ function App() {
             <p className="text-gray-600">{promptsData.prompt_count} {t.promptsCount}</p>
           </div>
 
-          {promptsData.suggested_ai_tools && (
-            <Card className="mb-8">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Sparkles className="w-5 h-5" />
-                  {t.suggestedTools}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-wrap gap-2">
-                  {promptsData.suggested_ai_tools.map((tool, index) => (
-                    <a 
-                      key={index} 
-                      href={tool.url} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="no-underline"
+          {/* عرض الأدوات دائماً الآن */}
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Sparkles className="w-5 h-5" />
+                {t.suggestedTools}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-2">
+                {toolsToDisplay.map((tool, index) => (
+                  <a 
+                    key={index} 
+                    href={tool.url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="no-underline"
+                  >
+                    <Badge 
+                      variant="secondary" 
+                      className="hover:bg-blue-100 hover:text-blue-800 cursor-pointer transition-colors px-4 py-2 text-sm flex items-center gap-1"
                     >
-                      <Badge 
-                        variant="secondary" 
-                        className="hover:bg-blue-100 hover:text-blue-800 cursor-pointer transition-colors px-4 py-1 text-sm"
-                      >
-                        {tool.name} ↗
-                      </Badge>
-                    </a>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+                      {tool.name} ↗
+                    </Badge>
+                  </a>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
 
           <div className="grid gap-4">
             {currentList.map((prompt, index) => (
               <Card key={index} className="hover:shadow-md transition-shadow">
                 <CardContent className="p-6">
                   <div className="flex justify-between items-start gap-4">
-                    <p className="text-gray-700 flex-1">{prompt}</p>
+                    <p className="text-gray-700 flex-1 leading-relaxed">{prompt}</p>
                     <Button onClick={() => copyToClipboard(prompt)} size="sm" variant="outline" className="shrink-0">
                       <Copy className="w-4 h-4 mr-2" />
                       {t.copyPrompt}
