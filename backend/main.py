@@ -9,45 +9,40 @@ CORS(app)
 def load_data():
     try:
         base_dir = os.path.dirname(os.path.abspath(__file__))
-        # استخدام الاسم الصحيح للملف
         file_path = os.path.join(base_dir, 'structured_career_data.json')
-        print(f"Loading data from: {file_path}")
-        
         with open(file_path, 'r', encoding='utf-8') as f:
             return json.load(f)
-    except FileNotFoundError:
-        print("Error: File not found!")
-        return []
     except Exception as e:
-        print(f"An error occurred: {e}")
+        print(f"❌ Error loading data: {e}")
         return []
 
 @app.route('/')
 def home():
-    return "Backend is running correctly!"
+    return "Backend is running!"
 
 @app.route('/api/careers', methods=['GET'])
 def get_careers():
     data = load_data()
     careers_list = []
     
-    # التعامل مع البيانات سواء كانت قائمة مباشرة أو داخل مفتاح
+    # التعامل مع البيانات سواء كانت قائمة أو قاموس
     careers_data = data.get('careers', []) if isinstance(data, dict) else data
 
-    if not careers_data:
-         return jsonify({"success": False, "message": "No data found", "careers": []})
+    if not careers_data: 
+        return jsonify({"success": False, "careers": []})
         
     for career in careers_data:
         if isinstance(career, dict):
-            # 1. قراءة الاسم من المفتاح الصحيح "care_name"
+            # 1. قراءة الاسم
             name = career.get('care_name', 'Unknown')
             
-            # 2. حساب عدد الأوامر من قائمة "prompts"
-            prompts = career.get('prompts', [])
+            # 2. قراءة عدد الأوامر مباشرة من القائمة الإنجليزية الموجودة في ملفك
+            # (حسب السجل الذي أرسلته: prompts_en)
+            prompts_en = career.get('prompts_en', [])
             
             careers_list.append({
                 "name": name,
-                "prompt_count": len(prompts)
+                "prompt_count": len(prompts_en)
             })
             
     return jsonify({"success": True, "careers": careers_list})
@@ -57,30 +52,25 @@ def get_prompts(career_name):
     data = load_data()
     careers_data = data.get('careers', []) if isinstance(data, dict) else data
     
-    # البحث عن المهنة باستخدام "care_name"
-    career = next((c for c in careers_data if isinstance(c, dict) and c.get('care_name', '').lower() == career_name.lower()), None)
+    # البحث عن المهنة
+    found_career = None
+    for c in careers_data:
+        c_name = c.get('care_name', '')
+        if c_name.strip().lower() == career_name.strip().lower():
+            found_career = c
+            break
     
-    if career:
-        # استخراج الأوامر من الهيكلة الجديدة
-        raw_prompts = career.get('prompts', [])
+    if found_career:
+        # قراءة القوائم مباشرة كما ظهرت في السجل
+        prompts_en = found_career.get('prompts_en', [])
+        prompts_ar = found_career.get('prompts_ar', [])
         
-        # تحويل الأوامر لقائمتين (عربي وإنجليزي) لتناسب الواجهة
-        prompts_en = []
-        prompts_ar = []
-        
-        for p in raw_prompts:
-            text_obj = p.get('text', {})
-            if text_obj.get('en'):
-                prompts_en.append(text_obj['en'])
-            if text_obj.get('ar'):
-                prompts_ar.append(text_obj['ar'])
-
         return jsonify({
             "success": True, 
-            "career": career.get('care_name'),
+            "career": found_career.get('care_name'),
             "prompts_ar": prompts_ar,
             "prompts_en": prompts_en,
-            "suggested_ai_tools": career.get('suggested_ai_tools', []),
+            "suggested_ai_tools": found_career.get('suggested_ai_tools', []),
             "prompt_count": len(prompts_en)
         })
         
